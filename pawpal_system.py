@@ -6,13 +6,25 @@ from typing import Optional
 class Task:
     task_name: str
     description: Optional[str] = None
-    priority: Optional[str] = None
+    priority: Optional[int] = None
+    time: Optional[str] = None
+    frequency: Optional[str] = None
+    completed: bool = False
 
     def set_description(self, description: str):
-        pass
+        self.description = description
 
-    def set_priority(self, priority: str):
-        pass
+    def set_priority(self, priority: int):
+        self.priority = priority
+
+    def set_time(self, time: str):
+        self.time = time
+
+    def set_frequency(self, frequency: str):
+        self.frequency = frequency
+
+    def set_completed(self, completed: bool):
+        self.completed = completed
 
 
 @dataclass
