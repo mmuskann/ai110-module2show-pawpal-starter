@@ -7,7 +7,59 @@
 - Briefly describe your initial UML design.
 - What classes did you include, and what responsibilities did you assign to each?
 
-The three core actions the user should be able to perform are add their pet, add their constraint, and add their pet care task. So, the classes would be the pet class, constraint class and task class. Pet class is reponsible for the pet's information such as name, etc. The constraint class is to allow the owner to add certains times they are not available, their preferences, and prioirty of task or each pet if they have mutliple. The task class is responsible for putting tasks with the pet object/ making a list of taks.
+The three core actions the user should be able to perform are add their pet, add their constraint, and add their pet care task. So, the classes would be the pet class, constraint class and task class. Pet class is reponsible for the pet's information such as name, etc. The constraint class is to allow the owner to add certains times they are not available, their preferences, and prioirty of task or each pet if they have mutliple. The task class is responsible for putting tasks with the pet object/ making a list of tasks. There should be also an owner class to assign the pet to the owner.
+
+Brainstorm:
+
+Owner Class {
+    constructor {
+        --> name
+    }
+    method {
+        --> delete owner
+        --> delete pet from owner
+        --> change name
+    }
+}
+
+Pet Class {
+    constructor {
+        --> pet_name
+    }
+    method {
+        --> remove pet
+        --> pet age
+        --> pet type?
+    }
+}
+
+Constraint Class {
+    constructor {
+        -->constraint name
+    }
+    method {
+        --> remove constrain
+        --> block time (start time, end time)
+        --> perfered time (start time, end time)
+        --> priority
+        --> change block time
+        --> change perfered time
+        --> change priority
+        --> constraint description
+    }
+}
+
+Task Class {
+    constructor {
+        -->task name
+    }
+    method {
+        --> delete task 
+        --> task description
+        --> add task priority
+    }
+}
+
 
 **b. Design changes**
 
