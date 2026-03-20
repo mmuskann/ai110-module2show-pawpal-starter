@@ -47,6 +47,9 @@ class Pet:
         if task in self.tasks:
             self.tasks.remove(task)
 
+    def task_count(self) -> int:
+        return len(self.tasks)
+
 
 @dataclass
 class BlockTime:
