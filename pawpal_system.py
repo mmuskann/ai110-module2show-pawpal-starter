@@ -137,3 +137,35 @@ class Scheduler:
                 all_tasks.append((pet, task))
         return all_tasks
 
+    def get_all_tasks_sorted(self) -> list[tuple[Pet, Task]]:
+        """Return all tasks sorted chronologically by time. Tasks with no time go last."""
+        all_tasks = self.get_all_tasks()
+        return sorted(all_tasks, key=lambda pair: (pair[1].time is None, pair[1].time))
+
+    def complete_daily_task(self, pet: Pet, task: Task) -> Optional[Task]:
+        """Mark a daily task complete and add a fresh copy to the pet for the next day.
+        Returns the new task, or None if the task is not daily."""
+        task.set_completed(True)
+        if task.frequency != "daily":
+            return None
+        next_task = Task(
+            task_name=task.task_name,
+            description=task.description,
+            priority=task.priority,
+            time=task.time,
+            frequency=task.frequency,
+            completed=False,
+        )
+        pet.add_task(next_task)
+        return next_task
+
+    def get_time_conflicts(self) -> dict[str, list[tuple[Pet, Task]]]:
+        """Return a dict mapping time strings to lists of (Pet, Task) pairs
+        that share that time. Only times with more than one task are included."""
+        time_map: dict[str, list[tuple[Pet, Task]]] = {}
+        for pet, task in self.get_all_tasks():
+            if task.time is None:
+                continue
+            time_map.setdefault(task.time, []).append((pet, task))
+        return {t: pairs for t, pairs in time_map.items() if len(pairs) > 1}
+
