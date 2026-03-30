@@ -8,8 +8,26 @@ st.caption("A smart pet care scheduling assistant")
 
 st.divider()
 
+if "tasks" not in st.session_state:
+    st.session_state.tasks = []
+
+# ── Owner selector ────────────────────────────────────────────────────────────
+existing_owners = sorted({e["owner"] for e in st.session_state.tasks}) if st.session_state.tasks else []
+
+if existing_owners:
+    st.subheader("Select Owner")
+    selected_owner = st.selectbox(
+        "Filter by owner",
+        options=existing_owners,
+        key="owner_filter",
+    )
+    st.caption(f"Viewing tasks for **{selected_owner}**. Add tasks below to any owner.")
+    st.divider()
+else:
+    selected_owner = None
+
 # ── Owner & Pet ──────────────────────────────────────────────────────────────
-st.subheader("Owner & Pet")
+st.subheader("Add a Task")
 
 col_owner, col_pet, col_species = st.columns(3)
 with col_owner:
@@ -18,6 +36,9 @@ with col_pet:
     pet_name = st.text_input("Pet name", value="Mochi")
 with col_species:
     species = st.selectbox("Species", ["dog", "cat", "other"])
+
+# The active owner for viewing/filtering is the selector if it exists, otherwise the text input
+view_owner = selected_owner if selected_owner else owner_name
 
 st.divider()
 
@@ -36,9 +57,6 @@ with col4:
 
 task_description = st.text_input("Description (optional)", value="")
 task_frequency = st.selectbox("Frequency", ["daily", "weekly", "as needed"])
-
-if "tasks" not in st.session_state:
-    st.session_state.tasks = []
 
 if st.button("➕ Add task", use_container_width=True):
     new_task = Task(task_name=task_title)
@@ -61,21 +79,27 @@ st.divider()
 # ── Current task list ────────────────────────────────────────────────────────
 st.subheader("Current Tasks")
 
-if any(e["owner"] == owner_name and e["pet"] == pet_name for e in st.session_state.tasks):
+owner_entries = [e for e in st.session_state.tasks if e["owner"] == view_owner]
+
+if owner_entries:
     filter_status = st.radio(
         "Show tasks:",
         ["All", "Pending only", "Completed only"],
         horizontal=True,
     )
 
-    # Build a temporary scheduler just for filtering/display of the raw list
-    _owner = Owner(name=owner_name)
-    _pet = Pet(pet_name=pet_name)
-    _pet.set_type(species)
-    for entry in st.session_state.tasks:
-        if entry["owner"] == owner_name and entry["pet"] == pet_name:
-            _pet.add_task(entry["task"])
-    _owner.add_pet(_pet)
+    # Build a scheduler with all pets for the selected owner
+    _owner = Owner(name=view_owner)
+    _pets_map: dict[str, Pet] = {}
+    for entry in owner_entries:
+        pname = entry["pet"]
+        if pname not in _pets_map:
+            _p = Pet(pet_name=pname)
+            _p.set_type(entry["species"])
+            _pets_map[pname] = _p
+        _pets_map[pname].add_task(entry["task"])
+    for _p in _pets_map.values():
+        _owner.add_pet(_p)
     _sched = Scheduler(owner=_owner)
 
     if filter_status == "Pending only":
@@ -86,11 +110,12 @@ if any(e["owner"] == owner_name and e["pet"] == pet_name for e in st.session_sta
         display_pairs = _sched.get_all_tasks_sorted()
 
     if display_pairs:
-        st.caption(f"Showing **{len(display_pairs)}** task(s) for {pet_name}")
+        st.caption(f"Showing **{len(display_pairs)}** task(s) for **{view_owner}**")
         with st.container(border=True):
             st.dataframe(
                 [
                     {
+                        "Pet": p.pet_name,
                         "Task": t.task_name,
                         "Time": t.time or "—",
                         "Priority": t.priority if t.priority else None,
@@ -98,7 +123,7 @@ if any(e["owner"] == owner_name and e["pet"] == pet_name for e in st.session_sta
                         "Description": t.description or "",
                         "Done": t.completed,
                     }
-                    for _, t in display_pairs
+                    for p, t in display_pairs
                 ],
                 column_config={
                     "Priority": st.column_config.ProgressColumn(
@@ -128,14 +153,14 @@ st.subheader("Edit / Delete a Task")
 
 _edit_entries = [
     (i, e) for i, e in enumerate(st.session_state.tasks)
-    if e["owner"] == owner_name and e["pet"] == pet_name
+    if e["owner"] == view_owner
 ]
 
 if not _edit_entries:
     st.info("No tasks to edit yet. Add one above.")
 else:
     _task_labels = [
-        f"{e['task'].task_name} @ {e['task'].time or 'no time'}"
+        f"{e['pet']} — {e['task'].task_name} @ {e['task'].time or 'no time'}"
         for _, e in _edit_entries
     ]
     _selected_label = st.selectbox("Select a task to edit", _task_labels, key="edit_select")
@@ -191,17 +216,21 @@ st.divider()
 st.subheader("Generate Schedule")
 
 if st.button("📅 Build schedule", use_container_width=True):
-    owner_pet_tasks = [e for e in st.session_state.tasks if e["owner"] == owner_name and e["pet"] == pet_name]
+    owner_pet_tasks = [e for e in st.session_state.tasks if e["owner"] == view_owner]
     if not owner_pet_tasks:
         st.warning("Add at least one task before generating a schedule.")
     else:
-        owner = Owner(name=owner_name)
-        pet = Pet(pet_name=pet_name)
-        pet.set_type(species)
-        for entry in st.session_state.tasks:
-            if entry["owner"] == owner_name and entry["pet"] == pet_name:
-                pet.add_task(entry["task"])
-        owner.add_pet(pet)
+        owner = Owner(name=view_owner)
+        pets_map: dict[str, Pet] = {}
+        for entry in owner_pet_tasks:
+            pname = entry["pet"]
+            if pname not in pets_map:
+                p = Pet(pet_name=pname)
+                p.set_type(entry["species"])
+                pets_map[pname] = p
+            pets_map[pname].add_task(entry["task"])
+        for p in pets_map.values():
+            owner.add_pet(p)
 
         scheduler = Scheduler(owner=owner)
         sorted_tasks = scheduler.get_all_tasks_sorted()
@@ -242,7 +271,8 @@ if st.button("📅 Build schedule", use_container_width=True):
             st.success("No conflicts — your schedule looks great!", icon="✅")
 
         # ── Sorted schedule table ────────────────────────────────────────────
-        st.markdown(f"### {owner.name}'s Schedule for {pet.pet_name} ({pet.type})")
+        pets_summary = ", ".join(f"{p.pet_name} ({p.type})" for p in pets_map.values())
+        st.markdown(f"### {owner.name}'s Schedule — {pets_summary}")
         st.caption("Tasks sorted earliest to latest. Tasks without a set time appear at the bottom.")
 
         with st.container(border=True):
@@ -250,6 +280,7 @@ if st.button("📅 Build schedule", use_container_width=True):
                 [
                     {
                         "#": i + 1,
+                        "Pet": p.pet_name,
                         "Time": t.time or "—",
                         "Duration": f"{t.duration} min" if t.duration else "—",
                         "Task": t.task_name,
@@ -258,7 +289,7 @@ if st.button("📅 Build schedule", use_container_width=True):
                         "Description": t.description or "",
                         "Done": t.completed,
                     }
-                    for i, (_, t) in enumerate(sorted_tasks)
+                    for i, (p, t) in enumerate(sorted_tasks)
                 ],
                 column_config={
                     "#": st.column_config.NumberColumn("#", width="small"),
